@@ -3,14 +3,17 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+DOMAIN_NAME = 'DOMAIN_NAME' # подтянуть из .env
+
 SECRET_KEY = (
-    'django-insecure-508yx%04(-1rh@o74nuath+i4adict$)@p7k3=(^!xflgsta1_'
+    'django-insecure-508yx%04(-1rh@o74nuath+i4adict$)@p7k3=(^!xflgsta1_' # спрятать в .env
 )
 
 DEBUG = True
 SQLAITE = True
+LOKAL = 1
 
-ALLOWED_HOSTS = ['127.0.0.1', 'localhost']
+ALLOWED_HOSTS = ['127.0.0.1', 'localhost', DOMAIN_NAME]
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -21,8 +24,8 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
 
     'rest_framework',
-    # 'rest_framework_simplejwt',
     'rest_framework.authtoken',
+    'django_filters',
     'djoser',
 
     'api.apps.ApiConfig',
@@ -64,7 +67,8 @@ if SQLAITE:
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': BASE_DIR / 'sqlite/db.sqlite3',
+            'NAME': BASE_DIR / 'sqlite/db.sqlite3'
+            if LOKAL else '/sqlite/db.sqlite3',
         }
     }
 else:
@@ -112,7 +116,7 @@ STATIC_URL = '/static/django_static/'
 STATIC_ROOT = BASE_DIR / 'collected_static'
 
 MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
+MEDIA_ROOT = BASE_DIR / 'media' if LOKAL else '/media/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
@@ -126,9 +130,8 @@ REST_FRAMEWORK = {
     ],
 
     'DEFAULT_PAGINATION_CLASS': (
-        'rest_framework.pagination.PageNumberPagination'
+        'api.v1.paginations.FootgramPageNumberPagination'
     ),
-    'PAGE_SIZE': 6,
 }
 
 AUTH_USER_MODEL = 'users.UserFoodgram'
@@ -136,17 +139,38 @@ AUTH_USER_MODEL = 'users.UserFoodgram'
 DJOSER = {
     'LOGIN_FIELD': 'email',
     'SERIALIZERS': {
-        'current_user': 'api.v1.serializer.UserFoodgramSerializer',
-        'user': 'api.v1.serializer.UserFoodgramSerializer',
-        'user_create': 'api.v1.serializer.UserCreateFoodgramSerializer',
+        'current_user': 'api.v1.serializers.UserFoodgramSerializer',
+        'user': 'api.v1.serializers.UserFoodgramSerializer',
+        'user_create': 'api.v1.serializers.UserCreateFoodgramSerializer',
+    },
+    'HIDE_USERS': False,
+    'PERMISSIONS': {
+        'user': ['rest_framework.permissions.AllowAny'],
+        'user_list': ['rest_framework.permissions.AllowAny'],
+        # 'set_username': ['rest_framework.permissions.AllowAny'],
     },
 }
 
-INVALID_ESER_NAMES = ('me', 'Me', 'eM', 'ME')
+INVALID_USER_NAMES = ('me', 'Me', 'eM', 'ME')
 PATTERN_USERNAME = r'^[\w.@+-]+\Z'
+
+SEARCH_PARAM = 'name'
+
+PAGE_SIZE = 6
+PAGE_SIZE_QUERY_PARAM = 'limit'
+
+EXTRA_TABULAR_INLINE = 1
+RECIPES_LIMIT = 1
+
+MIN_COOKING_TIME = 1
 MIN_AMOUNT = 1
 LENGTH_USERNAME = 150
 LENGTH_TEXT_SMALL = 32
 LENGTH_TEXT_SHORT = 64
 LENGTH_TEXT_MEDIUM = 128
 LENGTH_TEXT_LONG = 256
+
+STRING_CHARACTERS = ('abcdefghijklmnopqrstuvwxyz'
+                     'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+                     '1234567890')
+LENGTH_SHORT_LINK = 4

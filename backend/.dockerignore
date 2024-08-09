@@ -1,6 +1,7 @@
 venv
 .git
 sqlite
+media
 db.sqlite3
 .idea
 .vscode

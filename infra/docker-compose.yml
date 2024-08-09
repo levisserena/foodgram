@@ -1,7 +1,7 @@
 version: '3.3'
 
 volumes:
-  sqlite:  # удалить
+  sqlite_data:  # удалить
   static:
   media:
 
@@ -33,6 +33,6 @@ services:
     #     condition: service_healthy
     #     restart: true
     volumes:
-      - static:/static/
-      - media:/media/
-      - sqlite:/sqlite/  # убрать
+      - static:/static
+      - media:/media
+      - sqlite_data:/sqlite  # убрать

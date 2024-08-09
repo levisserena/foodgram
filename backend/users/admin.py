@@ -12,6 +12,7 @@ class UserFoodgramAdmin(ModelAdmin):
     """Для управления пользователями в админ зоне."""
 
     fields = (
+        'id',
         'username',
         'email',
         ('last_name', 'first_name'),
@@ -20,10 +21,15 @@ class UserFoodgramAdmin(ModelAdmin):
         ('avatar', 'get_html_avatar'),
     )
     list_display = (
+        'id',
         'username',
         'email',
         'get_full_name',
         'is_active',
+    )
+    list_display_links = (
+        'id',
+        'username',
     )
     list_editable = (
         'is_active',
@@ -35,6 +41,7 @@ class UserFoodgramAdmin(ModelAdmin):
         'first_name',
     )
     readonly_fields = (
+        'id',
         'date_joined',
         'get_html_avatar',
     )
@@ -76,29 +83,30 @@ class FollowAdmin(ModelAdmin):
         'get_user_name',
         'get_following_name',
     )
+    search_fields = (
+        'user__username',
+        'following__username',
+        'user__last_name',
+        'following__last_name',
+        'user__first_name',
+        'following__first_name',
+    )
+    search_help_text = ('Можно искать по username, имени и фамилии как'
+                        'подписчика, так и на кого подписывались')
 
     @display(description='Имя того, кто подписан')
     def get_user_name(self, object):
         """Возвращает имя того, кто подписан."""
-        return (
-            f'{object.user.last_name} {object.user.first_name}'
-            if f'{object.user.last_name} {object.user.first_name}' != ' '
-            else f'{object.user.username}'
-        )
+        return object.user.__str__()
 
     @display(description='Имя того, на кого подписан')
     def get_following_name(self, object):
         """Возвращает имя того, на кого подписан."""
-        return (
-            f'{object.following.last_name} {object.following.first_name}'
-            if f'{object.following.last_name} '
-               f'{object.following.first_name}' != ' '
-            else f'{object.following.username}'
-        )
+        return object.following.__str__()
 
     @display(description='Подписки')
     def get_following(self, object):
-        """Возвращает полное имя."""
+        """Возвращает кто на кого подписан."""
         user = self.get_user_name(object)
         following = self.get_following_name(object)
         return f'{user} подписан на {following}'

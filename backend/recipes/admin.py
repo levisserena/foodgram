@@ -1,15 +1,16 @@
 from django.contrib.admin import display, ModelAdmin, register, TabularInline
 from django.utils.safestring import mark_safe
 
+from backend.settings import EXTRA_TABULAR_INLINE
 from users.models import User
-from .models import Ingredient, Recipe, Tag
+from .models import Favoritism, Ingredient, Recipe, ShopingCart, ShortLink, Tag
 
 
 class TagsInline(TabularInline):
     """Позволит в зоне администрирования в рецептах выбирать тэги."""
 
     model = Recipe.tags.through
-    extra = 1
+    extra = EXTRA_TABULAR_INLINE
     verbose_name = 'Тэг к рецепту'
     verbose_name_plural = 'Тэги'
 
@@ -18,7 +19,7 @@ class IngredientsInline(TabularInline):
     """Позволит в зоне администрирования в рецептах выбирать ингридиенты."""
 
     model = Recipe.ingredients.through
-    extra = 1
+    extra = EXTRA_TABULAR_INLINE
     verbose_name = 'Ингредиент к рецепту'
     verbose_name_plural = 'Ингредиенты'
 
@@ -78,3 +79,25 @@ class IngredientAdmin(ModelAdmin):
     list_display_links = ('id', 'name')
     search_fields = ('name',)
     ordering = ('name',)
+
+
+@register(Favoritism)
+class FavoritismAdmin(ModelAdmin):
+    """Для управления добавления рецептов в избранное в админ зоне."""
+
+    pass
+
+
+@register(ShopingCart)
+class ShopingCartAdmin(ModelAdmin):
+    """Для управления добавления рецептов в корзину в админ зоне."""
+
+    pass
+
+
+
+@register(ShortLink)
+class ShortLinkAdmin(ModelAdmin):
+    """Для управления добавления рецептов в корзину в админ зоне."""
+
+    pass

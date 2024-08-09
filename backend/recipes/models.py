@@ -1,3 +1,4 @@
+from typing import Iterable
 from django.contrib.auth.models import AbstractUser
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
@@ -13,15 +14,17 @@ from django.db.models import (CASCADE,
                               SET_NULL,
                               SlugField)
 
-from backend.settings import (INVALID_ESER_NAMES,
+from backend.settings import (INVALID_USER_NAMES,
                               MIN_AMOUNT,
-                              LENGTH_USERNAME,
+                              MIN_COOKING_TIME,
+                              LENGTH_SHORT_LINK,
                               LENGTH_TEXT_SMALL,
                               LENGTH_TEXT_SHORT,
                               LENGTH_TEXT_MEDIUM,
-                              LENGTH_TEXT_LONG)
+                              LENGTH_TEXT_LONG,
+                              LENGTH_USERNAME)
 from users.models import User
-
+from .utilities import get_short_link
 
 class Tag(Model):
     """Метка-тэг."""
@@ -109,8 +112,8 @@ class Recipe(Model):
     cooking_time = IntegerField(
         verbose_name='Время приготовления в минутах',
         validators=[MinValueValidator(
-            MIN_AMOUNT,
-            message=f'Значение не может быть меньше чем {MIN_AMOUNT}',
+            MIN_COOKING_TIME,
+            message=f'Значение не может быть меньше чем {MIN_COOKING_TIME}',
         )],
         blank=False,
     )
@@ -127,10 +130,24 @@ class Recipe(Model):
 
         verbose_name = 'Рецепт'
         verbose_name_plural = 'Рецепты'
+        ordering = ('-id',)
 
     def __str__(self):
         """Строковое представление экземпляра класса."""
         return f'{self.name}'
+
+    def save(self, force_insert=False, force_update=False, using=None,
+             update_fields=None):
+        """При сохранение нового рецепта, создаёт короткую ссылку."""
+        instance = super().save(
+            force_insert, force_update, using, update_fields
+        )
+        while True:
+            short_link = get_short_link()
+            if not ShortLink.objects.filter(short=short_link).exists():
+                ShortLink.objects.create(recipe=self, short=short_link)
+                break
+        return instance
 
 
 class RecipeTag(Model):
@@ -156,6 +173,7 @@ class RecipeIngredient(Model):
 
     recipe = ForeignKey(
         Recipe,
+        related_name='ingridient_amount',
         on_delete=CASCADE
     )
     ingredient = ForeignKey(
@@ -175,3 +193,79 @@ class RecipeIngredient(Model):
     def __str__(self):
         """Строковое представление экземпляра класса."""
         return f'{self.ingredient} {self.amount}'
+
+
+class UserRecipeMixin(Model):  # UserRecipeBase
+    """Миксин таблици с полями "Пользователь" и "Рецепт"."""
+
+    user = ForeignKey(
+        User,
+        on_delete=CASCADE,
+        verbose_name='Пользователь',
+    )
+    recipe = ForeignKey(
+        Recipe,
+        on_delete=CASCADE,
+        verbose_name='Рецепт',
+    )
+
+    class Meta:
+        """Метаданные."""
+
+        abstract = True
+
+
+class Favoritism(UserRecipeMixin):
+    """Модель для добавления рецепта в избранное."""
+
+    class Meta:
+        """Метаданные."""
+
+        verbose_name = 'Таблица избраных рецептов'
+        verbose_name_plural = 'Таблица избраных рецептов'
+
+    def __str__(self):
+        """Строковое представление экземпляра класса."""
+        return (f'{self.user.__str__()} добавил в избранное рецепт '
+                f'{self.recipe.name}.')
+
+
+class ShopingCart(UserRecipeMixin):
+    """Модель для добавления рецепта корзину."""
+
+    class Meta:
+        """Метаданные."""
+
+        verbose_name = 'Таблица рецептов, добавленных в корзину'
+        verbose_name_plural = 'Таблица рецептов, добавленных в корзину'
+
+    def __str__(self):
+        """Строковое представление экземпляра класса."""
+        return (f'{self.user.__str__()} добавил в корзину рецепт '
+                f'{self.recipe.name}.')
+
+
+class ShortLink(Model):
+    """Модель для хранение коротких ссылок рецептов."""
+
+    recipe = ForeignKey(
+        Recipe,
+        on_delete=CASCADE,
+        verbose_name='Рецепт',
+        # related_name='short_link',
+    )
+    short = CharField(
+        verbose_name='Короткая ссылка',
+        max_length=LENGTH_SHORT_LINK,
+        blank=False,
+    )
+
+    class Meta:
+        """Метаданные."""
+
+        verbose_name = 'Короткая ссылка'
+        verbose_name_plural = 'Короткие ссылки на рецепты'
+
+    def __str__(self):
+        """Строковое представление экземпляра класса."""
+        return (f'Короткая ссылка рецепта {self.recipe.name}: {self.short}')

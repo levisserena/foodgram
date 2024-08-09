@@ -14,7 +14,7 @@ from django.db.models import (CASCADE,
                               SlugField,
                               UniqueConstraint)
 
-from backend.settings import INVALID_ESER_NAMES
+from backend.settings import INVALID_USER_NAMES
 
 
 class UserFoodgram(AbstractUser):
@@ -42,7 +42,9 @@ class UserFoodgram(AbstractUser):
 
     def __str__(self):
         """Строковое представление модели."""
-        return self.username
+        return (f'{self.last_name} {self.first_name}'
+                if f'{self.last_name} {self.first_name}' != ' '
+                else f'{self.username}')
 
     def clean(self):
         """Метод не позволит создать пользователя с именем "me"."""
@@ -62,7 +64,7 @@ class Follow(Model):
     user = ForeignKey(
         User,
         on_delete=CASCADE,
-        related_name='fan',
+        related_name='fan',  # нужно?
         verbose_name='Кто подписывался',
     )
     following = ForeignKey(
