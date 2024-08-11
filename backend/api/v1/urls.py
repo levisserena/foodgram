@@ -33,8 +33,8 @@ router_recipes.register(
 
 urlpatterns = [
     # path('users/me/avatar/', avatar, name='avatar'),
-    path('auth/', include('djoser.urls.authtoken')),
-    path('', include(router_recipes.urls)),
+    path('api/auth/', include('djoser.urls.authtoken')),
+    path('api/', include(router_recipes.urls)),
     # path('', include('djoser.urls.base')),
     path('s/<str:short>/', redirect_short_link, name='redirect_short_link')
 ]

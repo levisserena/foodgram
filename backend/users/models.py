@@ -49,7 +49,7 @@ class UserFoodgram(AbstractUser):
     def clean(self):
         """Метод не позволит создать пользователя с именем "me"."""
         super().clean()
-        if self.username in INVALID_ESER_NAMES:
+        if self.username in INVALID_USER_NAMES:
             raise ValidationError(
                 'Недопустимое имя!'
             )
@@ -75,7 +75,7 @@ class Follow(Model):
     )
 
     class Meta:
-        """Методанные."""
+        """Метaданные."""
 
         verbose_name = 'Подписки'
         verbose_name_plural = 'Подписки'
@@ -91,7 +91,7 @@ class Follow(Model):
         return f'{self.user} подписан на {self.following}'
 
     def clean(self):
-        """Метод не допустит подписатся на самого себя."""
+        """Метод не разрешает подписаться на самого себя."""
         if self.user == self.following:
             raise ValidationError(
                 'Подписываться самому на себя нельзя!'

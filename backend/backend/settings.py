@@ -3,15 +3,21 @@ from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-DOMAIN_NAME = 'DOMAIN_NAME' # подтянуть из .env
-
 SECRET_KEY = (
     'django-insecure-508yx%04(-1rh@o74nuath+i4adict$)@p7k3=(^!xflgsta1_' # спрятать в .env
 )
 
 DEBUG = True
+# True если использует SQLite, иначе используется PostgreSQL.
 SQLAITE = True
-LOKAL = 1
+# При запуске проекта через manage.py runserver - значение True.
+LOCALLY = True
+# True если используется защищённый протокол передачи данных в интернете.
+HTTPSecure = False
+
+DOMAIN_NAME = '.env' if not DEBUG else (  # подтянуть из .env
+    '127.0.0.1:8000' if LOCALLY else 'localhost'
+)
 
 ALLOWED_HOSTS = ['127.0.0.1', 'localhost', DOMAIN_NAME]
 
@@ -68,7 +74,7 @@ if SQLAITE:
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
             'NAME': BASE_DIR / 'sqlite/db.sqlite3'
-            if LOKAL else '/sqlite/db.sqlite3',
+            if LOCALLY else '/sqlite/db.sqlite3',
         }
     }
 else:
@@ -116,7 +122,7 @@ STATIC_URL = '/static/django_static/'
 STATIC_ROOT = BASE_DIR / 'collected_static'
 
 MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media' if LOKAL else '/media/'
+MEDIA_ROOT = BASE_DIR / 'media' if LOCALLY else '/media/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
@@ -147,7 +153,6 @@ DJOSER = {
     'PERMISSIONS': {
         'user': ['rest_framework.permissions.AllowAny'],
         'user_list': ['rest_framework.permissions.AllowAny'],
-        # 'set_username': ['rest_framework.permissions.AllowAny'],
     },
 }
 
@@ -174,3 +179,5 @@ STRING_CHARACTERS = ('abcdefghijklmnopqrstuvwxyz'
                      'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
                      '1234567890')
 LENGTH_SHORT_LINK = 4
+
+HTTPS = 's' if HTTPSecure else ''

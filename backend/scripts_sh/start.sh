@@ -1,9 +1,9 @@
 #!/bin/bash
 echo "Start of filling the database..."
-sh migrate.sh
-sh user.sh
-sh token.sh
-sh follow.sh
-sh tag.sh
-sh ingredient.sh
+sh scripts_sh/migrate.sh
+sh scripts_sh/user.sh
+sh scripts_sh/token.sh
+sh scripts_sh/follow.sh
+sh scripts_sh/tag.sh
+sh scripts_sh/ingredient.sh
 echo "...finihs filling the database."

@@ -9,6 +9,7 @@ from djoser.serializers import UserCreateSerializer, UserSerializer
 from rest_framework.exceptions import ValidationError
 from rest_framework.serializers import (BooleanField,
                                         CharField,
+                                        CurrentUserDefault,
                                         EmailField,
                                         IntegerField,
                                         ImageField,
@@ -18,7 +19,7 @@ from rest_framework.serializers import (BooleanField,
                                         SerializerMethodField,
                                         SlugField,
                                         SlugRelatedField)
-from rest_framework.validators import UniqueValidator
+from rest_framework.validators import UniqueTogetherValidator, UniqueValidator
 
 from backend.settings import (INVALID_USER_NAMES,
                               LENGTH_USERNAME,
@@ -239,21 +240,13 @@ class RecipeWriteSerializer(ModelSerializer):
         ingredients = validated_data.pop('ingredients')
         recipe = Recipe.objects.create(**validated_data)
         RecipeTag.objects.bulk_create([
-            RecipeTag(recipe=recipe, tag=tag_id) for tag_id in tags
+            RecipeTag(recipe=recipe, tag=tag) for tag in tags
         ])
-        # for tag_id in tags:
-        #     RecipeTag.objects.create(recipe=recipe, tag=tag_id)
         RecipeIngredient.objects.bulk_create([
             RecipeIngredient(
                 recipe=recipe, amount=data['amount'], ingredient=data['id']
             ) for data in ingredients
         ])
-        # for ingredient_data in ingredients:
-        #     amount = ingredient_data['amount']
-        #     ingredient_id = ingredient_data['id']
-        #     RecipeIngredient.objects.create(
-        #         recipe=recipe, ingredient=ingredient_id, amount=amount
-        #     )
         return recipe
 
     def update(self, instance, validated_data):
@@ -274,27 +267,18 @@ class RecipeWriteSerializer(ModelSerializer):
                     amount=data['amount'],
                 ) for data in ingredients_data
             ])
-            # for ingredient_amount in ingredients_data:
-            #     ingredient = ingredient_amount['id']
-            #     amount = ingredient_amount['amount']
-            #     RecipeIngredient.objects.get_or_create(
-            #         recipe=instance, ingredient=ingredient, amount=amount
-            #     )
         if 'tags' in validated_data:
             tags_data = validated_data.pop('tags')
-            # list_tags = []
-            # for tag in tags_data:
-            #     list_tags.append(tag)
-            # instance.tags.set(list_tags)
             instance.tags.set([tag for tag in tags_data])
         instance.save()
         return instance
 
 
-class RecipeSubscriptionsSerializer(ModelSerializer):
+class RecipeShortSerializer(ModelSerializer):
     """Сериализатор модели рецептов.
 
-    Используется для отображения рецептов у подписанных пользователей.
+    Используется для отображения рецептов у подписанных пользователей и
+    избранного.
     """
 
     class Meta:
@@ -334,7 +318,7 @@ class UserSubscriptionsSerializer(UserFoodgramSerializer):
             'recipes_limit', RECIPES_LIMIT
         ))
         instance = Recipe.objects.filter(author=object.id)[:recipes_limit]
-        serializer = RecipeSubscriptionsSerializer(
+        serializer = RecipeShortSerializer(
             instance=instance, many=True,
         )
         return serializer.data
@@ -342,3 +326,43 @@ class UserSubscriptionsSerializer(UserFoodgramSerializer):
     def get_recipes_count(self, object):
         """Обрабатывает поле "счетчик рецептов"."""
         return Recipe.objects.filter(author=object.id).count()
+
+
+# class UsedSubscribeSerializer(ModelSerializer):
+#     """Сериализатор для модели подписки."""
+
+#     user = SlugRelatedField(
+#         slug_field='username', read_only=True, default=CurrentUserDefault(),
+#     )
+#     following = SlugRelatedField(
+#         slug_field='username', queryset=User.objects.all(),
+#     )
+
+#     class Meta:
+#         """Метаданные."""
+
+#         model = Follow
+#         fields = ('user', 'following')
+#         read_only_fields = ('user', 'following')
+#         validators = (
+#             UniqueTogetherValidator(
+#                 queryset=Follow.objects.all(),
+#                 fields=('user', 'following'),
+#                 message='На этого пользователя Вы уже подписаны!'
+#             ),
+#         )
+
+#     def validate_following(self, following):
+#         """Валидирует поле following.
+
+#         Подписываться на самого себя нельзя.
+#         """
+#         user = self.context['request'].user
+#         if user == following:
+#             raise ValidationError(detail='Подписаться на самого себя нельзя.')
+#         return following
+
+#     def to_representation(self, instance):
+#         """После создания, вернет эти данные."""
+#         serializer = UserSubscriptionsSerializer(instance)
+#         return serializer.data

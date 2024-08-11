@@ -155,6 +155,7 @@ class RecipeTag(Model):
 
     recipe = ForeignKey(
         Recipe,
+        verbose_name='Рецепт',
         on_delete=CASCADE,
     )
     tag = ForeignKey(
@@ -195,8 +196,8 @@ class RecipeIngredient(Model):
         return f'{self.ingredient} {self.amount}'
 
 
-class UserRecipeMixin(Model):  # UserRecipeBase
-    """Миксин таблици с полями "Пользователь" и "Рецепт"."""
+class Favoritism(Model):
+    """Модель для добавления рецепта в избранное."""
 
     user = ForeignKey(
         User,
@@ -207,16 +208,8 @@ class UserRecipeMixin(Model):  # UserRecipeBase
         Recipe,
         on_delete=CASCADE,
         verbose_name='Рецепт',
+        related_name='favorit',
     )
-
-    class Meta:
-        """Метаданные."""
-
-        abstract = True
-
-
-class Favoritism(UserRecipeMixin):
-    """Модель для добавления рецепта в избранное."""
 
     class Meta:
         """Метаданные."""
@@ -230,8 +223,20 @@ class Favoritism(UserRecipeMixin):
                 f'{self.recipe.name}.')
 
 
-class ShopingCart(UserRecipeMixin):
+class ShopingCart(Model):
     """Модель для добавления рецепта корзину."""
+
+    user = ForeignKey(
+        User,
+        on_delete=CASCADE,
+        verbose_name='Пользователь',
+    )
+    recipe = ForeignKey(
+        Recipe,
+        on_delete=CASCADE,
+        verbose_name='Рецепт',
+        related_name='shop',
+    )
 
     class Meta:
         """Метаданные."""
