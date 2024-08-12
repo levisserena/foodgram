@@ -1,43 +1,39 @@
-import os
-
-from django.contrib.auth.tokens import default_token_generator
-from django.db.models import Avg
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect
 from django_filters.rest_framework import DjangoFilterBackend
 from djoser.views import UserViewSet
-from rest_framework import filters, mixins, status, viewsets
-from rest_framework.decorators import action, api_view, permission_classes
-from rest_framework.filters import OrderingFilter, SearchFilter
-from rest_framework.generics import RetrieveAPIView, UpdateAPIView
+from rest_framework import status
+from rest_framework.decorators import action, api_view
 from rest_framework.mixins import ListModelMixin, RetrieveModelMixin
-from rest_framework.pagination import PageNumberPagination
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet, ModelViewSet
-from rest_framework_simplejwt.tokens import AccessToken
 
-from backend.settings import DOMAIN_NAME, HTTPS, LOCALLY  # SHOPPING_CART
-from recipes.models import (Favoritism,
-                            Ingredient,
-                            Recipe,
-                            RecipeIngredient,
-                            ShopingCart,
-                            ShortLink,
-                            Tag)
-from recipes.utilities import get_short_link
+from backend.settings import DOMAIN_NAME, HTTPS, LOCALLY
+from recipes.models import (Favoritism, Ingredient, Recipe, RecipeIngredient,
+                            ShoppingCart, ShortLink, Tag)
 from users.models import Follow, User
+from .permission import IsAdminOrAuthor
 from .filters import IngredientSearchFilter, RecipeFilterSet
-from .paginations import FootgramPageNumberPagination
-from .serializers import (AvatarSerializer,
-                          IngredientSerializer,
-                          RecipeReadSerializer,
-                          RecipeShortSerializer,
-                          RecipeWriteSerializer,
-                          TagSerializer,
-                          UserFoodgramSerializer,
+from .serializers import (AvatarSerializer, IngredientSerializer,
+                          RecipeReadSerializer, RecipeShortSerializer,
+                          RecipeWriteSerializer, TagSerializer,
                           UserSubscriptionsSerializer)
-from .utilities import delete_image
+
+
+def delete_or_400(object, message):
+    """Возвращает ошибку 400 если объекта нет, или удалит его."""
+    if not object.exists():
+        return Response({'errors': f'{message}'},
+                        status=status.HTTP_400_BAD_REQUEST)
+    object.delete()
+    return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+def exists_then_400(message):
+    """Возвращает ошибку 400 с сообщением, что объект уже есть."""
+    return Response({'errors': f'{message}'},
+                    status=status.HTTP_400_BAD_REQUEST)
 
 
 class UserFoodgramViewSet(UserViewSet):
@@ -82,22 +78,10 @@ class UserFoodgramViewSet(UserViewSet):
         following = get_object_or_404(User, id=id)
         follow = Follow.objects.filter(user=user, following=following)
         if request.method == 'DELETE':
-            if not follow.exists():
-                return Response(
-                    {'errors': 'Вы не были подписаны на пользователя '
-                               f'{following.last_name} '
-                               f'{following.first_name}'},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-            follow.delete()
-            return Response(status=status.HTTP_204_NO_CONTENT)
+            return delete_or_400(follow,
+                                 'Вы не были подписаны на этого пользователя')
         if follow.exists():
-            return Response(
-                    {'errors': 'Вы уже подписаны на пользователя '
-                               f'{following.last_name} '
-                               f'{following.first_name}'},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+            return exists_then_400('Вы уже подписаны на этого пользователя')
         if user == following:
             return Response(
                     {'errors': 'Нельзя подписываться на самого себя'},
@@ -139,10 +123,11 @@ class RecipeViewSet(ModelViewSet):
     def get_permissions(self):
         """Переопределяет допуски к разным отдельным эндпоинтам."""
         if self.action in (
-            'create', 'partial_update', 'destroy',
-            'favorite', 'shopping_cart', 'download_shopping_cart',
+            'create', 'favorite', 'shopping_cart', 'download_shopping_cart',
         ):
             self.permission_classes = [IsAuthenticated]
+        if self.action in ('partial_update', 'destroy'):
+            self.permission_classes = [IsAuthenticated, IsAdminOrAuthor]
         return super().get_permissions()
 
     def get_serializer_class(self):
@@ -162,19 +147,9 @@ class RecipeViewSet(ModelViewSet):
         recipe = get_object_or_404(Recipe, pk=pk)
         favorite = Favoritism.objects.filter(user=user, recipe=recipe)
         if request.method == 'DELETE':
-            if not favorite.exists():
-                return Response(
-                    {'errors': f'Рецепт {recipe.name} не был в избранном.'},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-            favorite.delete()
-            return Response(status=status.HTTP_204_NO_CONTENT)
+            return delete_or_400(favorite, 'Рецепт не был в избранном.')
         if favorite.exists():
-            return Response(
-                    {'errors': f'Вы уже добавили рецепт {recipe.name} в '
-                               'избранное.'},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+            return exists_then_400('Вы уже добавили этот рецепт в избранное')
         Favoritism.objects.create(user=user, recipe=recipe)
         serializer = RecipeShortSerializer(
             instance=recipe, context={'request': request}
@@ -186,22 +161,13 @@ class RecipeViewSet(ModelViewSet):
         """Позволяет добавлять рецепты в избранные."""
         user = request.user
         recipe = get_object_or_404(Recipe, pk=pk)
-        shop = ShopingCart.objects.filter(user=user, recipe=recipe)
+        shop = ShoppingCart.objects.filter(user=user, recipe=recipe)
         if request.method == 'DELETE':
-            if not shop.exists():
-                return Response(
-                    {'errors': f'Рецепт {recipe.name} не был в корзине.'},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-            shop.delete()
-            return Response(status=status.HTTP_204_NO_CONTENT)
+            return delete_or_400(shop,
+                                 'Этот рецепт не был в корзине')
         if shop.exists():
-            return Response(
-                    {'errors': f'Вы уже добавили рецепт {recipe.name} в '
-                               'корзину.'},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-        ShopingCart.objects.create(user=user, recipe=recipe)
+            return exists_then_400('Этот рецепт уже в корзине')
+        ShoppingCart.objects.create(user=user, recipe=recipe)
         serializer = RecipeShortSerializer(
             instance=recipe, context={'request': request}
         )
@@ -224,29 +190,20 @@ class RecipeViewSet(ModelViewSet):
             f'{ingredient.capitalize()} - {amount}\n'
             for ingredient, amount in list_for_file.items()
         ]
-        return HttpResponse(
-            file_txt,
-            content_type='text/plain'
-        )
+        return HttpResponse(file_txt, content_type='text/plain')
 
     @action(detail=True, url_path='get-link')
     def get_link(self, request, pk=None):
-        """Позволяет подписаться и отписаться на другого пользователя."""
+        """Возвращает короткую ссылку на рецепт."""
         short_link_recipe = ShortLink.objects.filter(recipe=pk)
         if not short_link_recipe.exists():
-            while True:
-                short_link = get_short_link()
-                if not ShortLink.objects.filter(short=short_link).exists():
-                    recipe = get_object_or_404(Recipe, pk=pk)
-                    new_short_link = ShortLink.objects.create(recipe=recipe,
-                                                              short=short_link)
-                    short_link_recipe = new_short_link.short
-                    break
+            recipe = get_object_or_404(Recipe, pk=pk)
+            short_link_recipe = recipe.short_link()
         else:
-            short_link_recipe = short_link_recipe.first().short
+            short_link_recipe = short_link_recipe.first()
         return Response(
             {'short-link': f'http{HTTPS}://{DOMAIN_NAME}'
-                           f'/s/{short_link_recipe}/'},
+                f'/s/{short_link_recipe.short}/'},
             status=status.HTTP_200_OK
         )
 

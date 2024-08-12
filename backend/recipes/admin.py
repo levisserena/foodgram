@@ -1,9 +1,7 @@
 from django.contrib.admin import display, ModelAdmin, register, TabularInline
-from django.utils.safestring import mark_safe
 
 from backend.settings import EXTRA_TABULAR_INLINE
-from users.models import User
-from .models import Favoritism, Ingredient, Recipe, ShopingCart, ShortLink, Tag
+from .models import Favoritism, Ingredient, Recipe, ShoppingCart, ShortLink, Tag
 
 
 class TagsInline(TabularInline):
@@ -24,38 +22,43 @@ class IngredientsInline(TabularInline):
     verbose_name_plural = 'Ингредиенты'
 
 
+class ImageMixin:
+    """Возвращает миниатюру аватара."""
+
+    @display(description='')
+    def get_html_image(self, object):
+        """Возвращает миниатюру картинки."""
+        return object.get_html_image
+
+
+class AvatarMixin:
+    """Возвращает миниатюру аватара."""
+
+    @display(description='')
+    def get_html_avatar_user(self, object):
+        """Возвращает миниатюру аватара."""
+        return object.user.get_html_avatar
+
+
 @register(Recipe)
-class RecipeAdmin(ModelAdmin):
+class RecipeAdmin(ImageMixin, AvatarMixin, ModelAdmin):
     """Для управления рецептами в админ зоне."""
 
-    fields = (
-        'author',
-        'name',
-        'get_favorites_counter',
-        'text',
-        'cooking_time',
-        ('image', 'get_html_image'),
-    )
+    fields = (('author', 'get_html_avatar_user'), 'name',
+              'get_favorites_counter', 'text', 'cooking_time',
+              ('image', 'get_html_image'))
     list_display = ('id', 'name', 'author')
     list_display_links = ('id', 'name')
     list_filter = ('tags',)
-    readonly_fields = (
-        'get_html_image',
-        'get_favorites_counter',  # убрать лишнее
-    )
+    readonly_fields = ('get_html_avatar_user', 'get_favorites_counter',
+                       'get_html_image')
     inlines = (IngredientsInline, TagsInline)
+    search_fields = ('name', 'author')
 
-    @display(description='Миниатюра')
-    def get_html_image(self, object):
-        """Возвращает миниатюру."""
-        if object.image:
-            return mark_safe(f'<img src="{object.image.url}" width=70>')
-        return 'Нет аватара'
-
-    @display(description='В избраном у ')
+    @display(description='В избранном у ')
     def get_favorites_counter(self, object):
         """Возвращает счетчик добавлений этого рецепта в избранное."""
-        count = '+100500'
+        count = Favoritism.objects.filter(recipe=object).count()
         return f'{count} пользователей.'
 
 
@@ -82,22 +85,23 @@ class IngredientAdmin(ModelAdmin):
 
 
 @register(Favoritism)
-class FavoritismAdmin(ModelAdmin):
+class FavoritismAdmin(ImageMixin, AvatarMixin, ModelAdmin):
     """Для управления добавления рецептов в избранное в админ зоне."""
 
-    pass
+    fields = (('user', 'get_html_avatar_user'), ('recipe', 'get_html_image'))
+    readonly_fields = ('get_html_avatar_user', 'get_html_image')
+    search_fields = ('user', 'recipe')
 
-
-@register(ShopingCart)
-class ShopingCartAdmin(ModelAdmin):
+@register(ShoppingCart)
+class ShoppingCartAdmin(FavoritismAdmin):
     """Для управления добавления рецептов в корзину в админ зоне."""
 
     pass
-
 
 
 @register(ShortLink)
 class ShortLinkAdmin(ModelAdmin):
     """Для управления добавления рецептов в корзину в админ зоне."""
 
-    pass
+    fields = ('recipe', 'short')
+    search_fields = ('recipe', 'short')

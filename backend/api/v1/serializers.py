@@ -1,39 +1,18 @@
 import base64
 import re
 
-from django.db.models import Q
-from django.contrib.auth.models import AnonymousUser
 from django.core.files.base import ContentFile
-from django.shortcuts import get_object_or_404
-from djoser.serializers import UserCreateSerializer, UserSerializer
+from django.db.transaction import atomic
+from djoser.serializers import UserCreateSerializer, UserSerializer, ValidationError
 from rest_framework.exceptions import ValidationError
-from rest_framework.serializers import (BooleanField,
-                                        CharField,
-                                        CurrentUserDefault,
-                                        EmailField,
-                                        IntegerField,
-                                        ImageField,
-                                        ModelSerializer,
-                                        ReadOnlyField,
-                                        Serializer,
-                                        SerializerMethodField,
-                                        SlugField,
+from rest_framework.serializers import (ImageField, ModelSerializer,
+                                        ReadOnlyField, SerializerMethodField,
                                         SlugRelatedField)
-from rest_framework.validators import UniqueTogetherValidator, UniqueValidator
 
-from backend.settings import (INVALID_USER_NAMES,
-                              LENGTH_USERNAME,
-                              PATTERN_USERNAME,
-                              RECIPES_LIMIT)
-from recipes.models import (Favoritism,
-                            Ingredient,
-                            Recipe,
-                            RecipeIngredient,
-                            RecipeTag,
-                            ShopingCart,
-                            Tag)
+from backend.settings import PATTERN_USERNAME, RECIPES_LIMIT
+from recipes.models import (Favoritism, Ingredient, Recipe, RecipeIngredient,
+                            RecipeTag, ShoppingCart, Tag)
 from users.models import User, Follow
-from .paginations import RecipeForSubscriptionsPagination
 
 
 class Base64ImageField(ImageField):
@@ -42,14 +21,14 @@ class Base64ImageField(ImageField):
     def to_internal_value(self, data):
         """Проверка данных на соответствие."""
         if isinstance(data, str) and data.startswith('data:image'):
-            format, imgstr = data.split(';base64,')
+            format, img_str = data.split(';base64,')
             ext = format.split('/')[-1]
-            data = ContentFile(base64.b64decode(imgstr), name='temp.' + ext)
+            data = ContentFile(base64.b64decode(img_str), name='temp.' + ext)
         return super().to_internal_value(data)
 
 
 def is_authenticated_user(object_self):
-    """Вернет кортеж request и бул значение аунтификации пользователя."""
+    """Вернет кортеж request и бул значение аутентификация пользователя."""
     request = object_self.context.get('request', None)
     return (request, request and request.user.is_authenticated)
 
@@ -103,18 +82,16 @@ class UserCreateFoodgramSerializer(UserCreateSerializer):
         }
 
     def validate_username(self, username):
-        """Не допускает имя пользователя me и проверяет по паттерну."""
+        """Проверяет по паттерну."""
         if not re.match(PATTERN_USERNAME, username):
-            raise ValidationError('В имене используется неразрешенные знаки.')
-        if username in INVALID_ESER_NAMES:
-            raise ValidationError('Это имя не допустимо.')
+            raise ValidationError('В имени используется неразрешенные знаки.')
         return username
 
 
 class AvatarSerializer(ModelSerializer):
     """Сериализатор для добавления аватара."""
 
-    avatar = Base64ImageField(required=True)  # allow_null=True
+    avatar = Base64ImageField(required=True)
 
     class Meta:
         """Метаданные."""
@@ -180,7 +157,7 @@ class RecipeReadSerializer(ModelSerializer):
     author = UserFoodgramSerializer()
     tags = TagSerializer(many=True)
     ingredients = IngredientReadSerializer(
-        source='ingridient_amount', many=True
+        source='ingredient_amount', many=True
     )
     is_favorited = SerializerMethodField()
     is_in_shopping_cart = SerializerMethodField()
@@ -206,7 +183,7 @@ class RecipeReadSerializer(ModelSerializer):
     def get_is_in_shopping_cart(self, object):
         """Обрабатывает поле is_in_shopping_cart."""
         request, result = is_authenticated_user(self)
-        return True if result and ShopingCart.objects.filter(
+        return True if result and ShoppingCart.objects.filter(
             user=request.user, recipe=object.id) else False
 
 
@@ -214,11 +191,9 @@ class RecipeWriteSerializer(ModelSerializer):
     """Сериализатор модели рецептов, для запросов POST и PATCH."""
 
     tags = SlugRelatedField(
-        slug_field='id', queryset=Tag.objects.all(), many=True
+        slug_field='id', queryset=Tag.objects.all(), many=True, required=True
     )
-    ingredients = IngredientWriteSerializer(
-        many=True
-    )
+    ingredients = IngredientWriteSerializer(many=True, required=True)
     image = Base64ImageField(required=True)
 
     class Meta:
@@ -234,6 +209,7 @@ class RecipeWriteSerializer(ModelSerializer):
         serializer = RecipeReadSerializer(instance)
         return serializer.data
 
+    @atomic
     def create(self, validated_data):
         """Обрабатывает создание нового рецепта."""
         tags = validated_data.pop('tags')
@@ -249,6 +225,7 @@ class RecipeWriteSerializer(ModelSerializer):
         ])
         return recipe
 
+    @atomic
     def update(self, instance, validated_data):
         """Обрабатывает изменение рецепта."""
         instance.image = validated_data.get('image', instance.image)
@@ -267,11 +244,35 @@ class RecipeWriteSerializer(ModelSerializer):
                     amount=data['amount'],
                 ) for data in ingredients_data
             ])
+        else:
+            raise ValidationError('У рецепта должны быть ингредиенты.')
         if 'tags' in validated_data:
             tags_data = validated_data.pop('tags')
             instance.tags.set([tag for tag in tags_data])
+        else:
+            raise ValidationError('У рецепта должны быть тэги.')
         instance.save()
         return instance
+
+    def validate_ingredients(self, ingredients):
+        """Проверит поле ингредиентов у рецепта."""
+        list_id_ingredients = [ingredient['id'] for ingredient in ingredients]
+        return self.check_ingredients_or_tags(
+            ingredients, list_id_ingredients, 'Ингредиенты'
+        )
+
+    def validate_tags(self, tags):
+        """Проверит поле тэгов у рецепта."""
+        list_id_tags = [tag for tag in tags]
+        return self.check_ingredients_or_tags(tags, list_id_tags, 'Тэги')
+
+    def check_ingredients_or_tags(self, orders, list_id_order, message):
+        """Для проверки наличия объектов и отсутствие их дублирования."""
+        if orders == []:
+            raise ValidationError(f'У рецепта должны быть {message}.')
+        if len(list_id_order) != len(set(list_id_order)):
+            raise ValidationError(f'{message} не должны повторятся.')
+        return orders
 
 
 class RecipeShortSerializer(ModelSerializer):
@@ -326,43 +327,3 @@ class UserSubscriptionsSerializer(UserFoodgramSerializer):
     def get_recipes_count(self, object):
         """Обрабатывает поле "счетчик рецептов"."""
         return Recipe.objects.filter(author=object.id).count()
-
-
-# class UsedSubscribeSerializer(ModelSerializer):
-#     """Сериализатор для модели подписки."""
-
-#     user = SlugRelatedField(
-#         slug_field='username', read_only=True, default=CurrentUserDefault(),
-#     )
-#     following = SlugRelatedField(
-#         slug_field='username', queryset=User.objects.all(),
-#     )
-
-#     class Meta:
-#         """Метаданные."""
-
-#         model = Follow
-#         fields = ('user', 'following')
-#         read_only_fields = ('user', 'following')
-#         validators = (
-#             UniqueTogetherValidator(
-#                 queryset=Follow.objects.all(),
-#                 fields=('user', 'following'),
-#                 message='На этого пользователя Вы уже подписаны!'
-#             ),
-#         )
-
-#     def validate_following(self, following):
-#         """Валидирует поле following.
-
-#         Подписываться на самого себя нельзя.
-#         """
-#         user = self.context['request'].user
-#         if user == following:
-#             raise ValidationError(detail='Подписаться на самого себя нельзя.')
-#         return following
-
-#     def to_representation(self, instance):
-#         """После создания, вернет эти данные."""
-#         serializer = UserSubscriptionsSerializer(instance)
-#         return serializer.data

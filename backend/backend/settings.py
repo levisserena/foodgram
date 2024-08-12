@@ -11,7 +11,7 @@ DEBUG = True
 # True если использует SQLite, иначе используется PostgreSQL.
 SQLAITE = True
 # При запуске проекта через manage.py runserver - значение True.
-LOCALLY = True
+LOCALLY = 1
 # True если используется защищённый протокол передачи данных в интернете.
 HTTPSecure = False
 
@@ -156,7 +156,6 @@ DJOSER = {
     },
 }
 
-INVALID_USER_NAMES = ('me', 'Me', 'eM', 'ME')
 PATTERN_USERNAME = r'^[\w.@+-]+\Z'
 
 SEARCH_PARAM = 'name'

@@ -1,11 +1,9 @@
-import django_filters
 from django_filters import FilterSet
 from django_filters.filters import ModelMultipleChoiceFilter, NumberFilter
-from rest_framework.filters import OrderingFilter, SearchFilter
+from rest_framework.filters import SearchFilter
 
 from backend.settings import SEARCH_PARAM
 from recipes.models import Recipe, Tag
-from users.models import User
 
 
 class IngredientSearchFilter(SearchFilter):
@@ -34,10 +32,14 @@ class RecipeFilterSet(FilterSet):
 
     def filter_selection(self, queryset, name, value):
         """Фильтрует в зависимости от запроса."""
-        if name == 'is_in_shopping_cart' and value:
+        if not self.request.user:
+            return queryset
+        if not self.request.user.is_authenticated:
+            return queryset
+        elif name == 'is_in_shopping_cart' and value:
             return queryset.filter(shop__user=self.request.user)
         elif name == 'is_favorited' and value:
-            return queryset.filter(favorit__user=self.request.user)
-        elif name == 'author' and value:
-            return queryset.filter(author=self.request.user)
+            return queryset.filter(favorite__user=self.request.user)
+        elif name == 'author':
+            return queryset.filter(author_id=value)
         return queryset

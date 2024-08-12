@@ -1,28 +1,12 @@
-from typing import Iterable
-from django.contrib.auth.models import AbstractUser
-from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
-from django.db.models import (CASCADE,
-                              CharField,
-                              EmailField,
-                              ForeignKey,
-                              ImageField,
-                              IntegerField,
-                              ManyToManyField,
-                              Model,
-                              TextField,
-                              SET_NULL,
-                              SlugField)
+from django.db.models import (CASCADE, CharField, DateTimeField, ForeignKey,
+                              ImageField, IntegerField, ManyToManyField,
+                              Model, TextField, SlugField, UniqueConstraint)
+from django.utils.safestring import mark_safe
 
-from backend.settings import (INVALID_USER_NAMES,
-                              MIN_AMOUNT,
-                              MIN_COOKING_TIME,
-                              LENGTH_SHORT_LINK,
-                              LENGTH_TEXT_SMALL,
-                              LENGTH_TEXT_SHORT,
-                              LENGTH_TEXT_MEDIUM,
-                              LENGTH_TEXT_LONG,
-                              LENGTH_USERNAME)
+from backend.settings import (MIN_AMOUNT, MIN_COOKING_TIME, LENGTH_SHORT_LINK,
+                              LENGTH_TEXT_SMALL, LENGTH_TEXT_SHORT,
+                              LENGTH_TEXT_MEDIUM, LENGTH_TEXT_LONG)
 from users.models import User
 from .utilities import get_short_link
 
@@ -60,6 +44,7 @@ class Ingredient(Model):
     name = CharField(
         verbose_name='Название',
         max_length=LENGTH_TEXT_MEDIUM,
+        unique=True,
         blank=False,
     )
     measurement_unit = CharField(
@@ -124,30 +109,53 @@ class Recipe(Model):
         blank=False,
         default=None,
     )
+    created = DateTimeField(
+        auto_now_add=True,
+        db_index=True,
+        verbose_name='Дата создания',
+    )
 
     class Meta:
         """Метаданные."""
 
         verbose_name = 'Рецепт'
         verbose_name_plural = 'Рецепты'
-        ordering = ('-id',)
+        ordering = ('-created',)
 
     def __str__(self):
         """Строковое представление экземпляра класса."""
-        return f'{self.name}'
+        return f'{self.name} (id: {self.id})'
 
-    def save(self, force_insert=False, force_update=False, using=None,
-             update_fields=None):
+    @property
+    def get_html_image(self):
+        """Возвращает миниатюру."""
+        if self.image:
+            return mark_safe(f'<img src="{self.image.url}" width=70>')
+        return 'Нет картинки'
+
+    def save(self, force_insert=False, force_update=False,
+             using=None, update_fields=None):
         """При сохранение нового рецепта, создаёт короткую ссылку."""
         instance = super().save(
             force_insert, force_update, using, update_fields
         )
+        self.create_short_link()
+        return instance
+
+    def create_short_link(self):
+        """Создаст короткую ссылку на рецепт."""
         while True:
             short_link = get_short_link()
             if not ShortLink.objects.filter(short=short_link).exists():
-                ShortLink.objects.create(recipe=self, short=short_link)
+                result = ShortLink.objects.create(recipe=self,
+                                                  short=short_link)
                 break
-        return instance
+        return result
+
+    @property
+    def short_link(self):
+        """Создаст короткую ссылку на рецепт."""
+        return self.create_short_link()
 
 
 class RecipeTag(Model):
@@ -164,6 +172,16 @@ class RecipeTag(Model):
         on_delete=CASCADE,
     )
 
+    class Meta:
+        """Метаданные."""
+
+        constraints = [
+            UniqueConstraint(
+                fields=['recipe', 'tag'],
+                name='unique_recipe_tag'
+            ),
+        ]
+
     def __str__(self):
         """Строковое представление экземпляра класса."""
         return f'{self.recipe} {self.tag}'
@@ -174,7 +192,8 @@ class RecipeIngredient(Model):
 
     recipe = ForeignKey(
         Recipe,
-        related_name='ingridient_amount',
+        verbose_name='Рецепт',
+        related_name='ingredient_amount',
         on_delete=CASCADE
     )
     ingredient = ForeignKey(
@@ -190,6 +209,16 @@ class RecipeIngredient(Model):
         )],
         blank=False,
     )
+
+    class Meta:
+        """Метаданные."""
+
+        constraints = [
+            UniqueConstraint(
+                fields=['recipe', 'ingredient'],
+                name='unique_recipe_ingredient'
+            ),
+        ]
 
     def __str__(self):
         """Строковое представление экземпляра класса."""
@@ -208,14 +237,20 @@ class Favoritism(Model):
         Recipe,
         on_delete=CASCADE,
         verbose_name='Рецепт',
-        related_name='favorit',
+        related_name='favorite',
     )
 
     class Meta:
         """Метаданные."""
 
-        verbose_name = 'Таблица избраных рецептов'
-        verbose_name_plural = 'Таблица избраных рецептов'
+        verbose_name = 'Таблица избранных рецептов'
+        verbose_name_plural = 'Таблица избранных рецептов'
+        constraints = [
+            UniqueConstraint(
+                fields=['user', 'recipe'],
+                name='unique_user_recipe_in_favorite'
+            ),
+        ]
 
     def __str__(self):
         """Строковое представление экземпляра класса."""
@@ -223,7 +258,7 @@ class Favoritism(Model):
                 f'{self.recipe.name}.')
 
 
-class ShopingCart(Model):
+class ShoppingCart(Model):
     """Модель для добавления рецепта корзину."""
 
     user = ForeignKey(
@@ -243,6 +278,12 @@ class ShopingCart(Model):
 
         verbose_name = 'Таблица рецептов, добавленных в корзину'
         verbose_name_plural = 'Таблица рецептов, добавленных в корзину'
+        constraints = [
+            UniqueConstraint(
+                fields=['user', 'recipe'],
+                name='unique_user_recipe_in_shopping'
+            ),
+        ]
 
     def __str__(self):
         """Строковое представление экземпляра класса."""
@@ -257,11 +298,11 @@ class ShortLink(Model):
         Recipe,
         on_delete=CASCADE,
         verbose_name='Рецепт',
-        # related_name='short_link',
     )
     short = CharField(
         verbose_name='Короткая ссылка',
         max_length=LENGTH_SHORT_LINK,
+        unique=True,
         blank=False,
     )
 

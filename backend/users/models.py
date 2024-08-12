@@ -1,29 +1,16 @@
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
 from django.core.exceptions import ValidationError
-from django.db.models import (CASCADE,
-                              CharField,
-                              EmailField,
-                              ForeignKey,
-                              ImageField,
-                              IntegerField,
-                              ManyToManyField,
-                              Model,
-                              TextField,
-                              SET_NULL,
-                              SlugField,
-                              UniqueConstraint)
-
-from backend.settings import INVALID_USER_NAMES
+from django.db.models import (CASCADE, EmailField, ForeignKey,
+                              ImageField, Model, UniqueConstraint)
+from django.utils.safestring import mark_safe
 
 
 class UserFoodgram(AbstractUser):
     """Модель пользователей, для проекта Footgram."""
 
-    REQUIRED_FIELDS = (
-        'first_name',
-        'last_name',
-    )
+    REQUIRED_FIELDS = ('first_name', 'last_name')
+
     email = EmailField(
         verbose_name='Электронная почта',
         unique=True,
@@ -42,17 +29,14 @@ class UserFoodgram(AbstractUser):
 
     def __str__(self):
         """Строковое представление модели."""
-        return (f'{self.last_name} {self.first_name}'
-                if f'{self.last_name} {self.first_name}' != ' '
-                else f'{self.username}')
+        return f'{self.last_name} {self.first_name} ({self.username})'
 
-    def clean(self):
-        """Метод не позволит создать пользователя с именем "me"."""
-        super().clean()
-        if self.username in INVALID_USER_NAMES:
-            raise ValidationError(
-                'Недопустимое имя!'
-            )
+    @property
+    def get_html_avatar(self):
+        """Возвращает миниатюру."""
+        if self.avatar:
+            return mark_safe(f'<img src="{self.avatar.url}" width=70>')
+        return 'Нет аватара'
 
 
 User = get_user_model()
@@ -64,7 +48,6 @@ class Follow(Model):
     user = ForeignKey(
         User,
         on_delete=CASCADE,
-        related_name='fan',  # нужно?
         verbose_name='Кто подписывался',
     )
     following = ForeignKey(
@@ -75,7 +58,7 @@ class Follow(Model):
     )
 
     class Meta:
-        """Метaданные."""
+        """Метаданные."""
 
         verbose_name = 'Подписки'
         verbose_name_plural = 'Подписки'
