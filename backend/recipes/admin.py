@@ -1,8 +1,8 @@
-from django.contrib.admin import display, ModelAdmin, register, TabularInline
+from django.contrib.admin import ModelAdmin, TabularInline, display, register
 
 from backend.settings import EXTRA_TABULAR_INLINE
-from .models import (Favoritism, Ingredient, Recipe,
-                     ShoppingCart, ShortLink, Tag)
+from .models import (Favoritism, Ingredient, Recipe, ShoppingCart, ShortLink,
+                     Tag)
 
 
 class TagsInline(TabularInline):

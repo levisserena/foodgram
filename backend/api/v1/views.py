@@ -1,7 +1,7 @@
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect
-from djoser.views import UserViewSet
 from django_filters.rest_framework import DjangoFilterBackend
+from djoser.views import UserViewSet
 from rest_framework import status
 from rest_framework.decorators import action, api_view
 from rest_framework.mixins import ListModelMixin, RetrieveModelMixin
@@ -13,8 +13,8 @@ from backend.settings import DOMAIN_NAME, HTTPS, LOCALLY
 from recipes.models import (Favoritism, Ingredient, Recipe, RecipeIngredient,
                             ShoppingCart, ShortLink, Tag)
 from users.models import Follow, User
-from .permission import IsAdminOrAuthor
 from .filters import IngredientSearchFilter, RecipeFilterSet
+from .permission import IsAdminOrAuthor
 from .serializers import (AvatarSerializer, IngredientSerializer,
                           RecipeReadSerializer, RecipeShortSerializer,
                           RecipeWriteSerializer, TagSerializer,

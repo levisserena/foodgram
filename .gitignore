@@ -4,6 +4,7 @@ infra/frontend/build
 sqlite
 venv
 shopping_cart
+main.yml.example
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

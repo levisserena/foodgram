@@ -1,4 +1,4 @@
-from django.contrib.admin import display, ModelAdmin, register, site
+from django.contrib.admin import ModelAdmin, display, register, site
 from django.contrib.auth.admin import UserAdmin
 from django.utils.translation import gettext_lazy as _
 

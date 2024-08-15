@@ -1,8 +1,8 @@
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
 from django.core.exceptions import ValidationError
-from django.db.models import (CASCADE, EmailField, ForeignKey,
-                              ImageField, Model, UniqueConstraint)
+from django.db.models import (CASCADE, EmailField, ForeignKey, ImageField,
+                              Model, UniqueConstraint)
 from django.utils.safestring import mark_safe
 
 

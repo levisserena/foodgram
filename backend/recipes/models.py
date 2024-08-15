@@ -1,12 +1,12 @@
 from django.core.validators import MinValueValidator
 from django.db.models import (CASCADE, CharField, DateTimeField, ForeignKey,
-                              ImageField, IntegerField, ManyToManyField,
-                              Model, TextField, SlugField, UniqueConstraint)
+                              ImageField, IntegerField, ManyToManyField, Model,
+                              SlugField, TextField, UniqueConstraint)
 from django.utils.safestring import mark_safe
 
-from backend.settings import (MIN_AMOUNT, MIN_COOKING_TIME, LENGTH_SHORT_LINK,
-                              LENGTH_TEXT_SMALL, LENGTH_TEXT_SHORT,
-                              LENGTH_TEXT_MEDIUM, LENGTH_TEXT_LONG)
+from backend.settings import (LENGTH_SHORT_LINK, LENGTH_TEXT_LONG,
+                              LENGTH_TEXT_MEDIUM, LENGTH_TEXT_SHORT,
+                              LENGTH_TEXT_SMALL, MIN_AMOUNT, MIN_COOKING_TIME)
 from users.models import User
 from .utilities import get_short_link
 
