@@ -28,6 +28,9 @@ const Technologies = () => {
                 Django REST Framework
               </li>
               <li className={styles.textItem}>
+                Django-filter
+              </li>
+              <li className={styles.textItem}>
                 Djoser
               </li>
             </ul>

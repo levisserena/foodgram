@@ -1,7 +1,7 @@
 version: '3.3'
 
 volumes:
-  sqlite_data:  # удалить
+  sqlite_data:
   static:
   media:
 
@@ -27,12 +27,8 @@ services:
   backend:
     container_name: foodgram-backend
     build: ../backend/
-    env_file: ../.env
-    # depends_on:
-    #   db:
-    #     condition: service_healthy
-    #     restart: true
+    env_file: .env
     volumes:
       - static:/static
       - media:/media
-      - sqlite_data:/sqlite  # убрать
+      - sqlite_data:/sqlite

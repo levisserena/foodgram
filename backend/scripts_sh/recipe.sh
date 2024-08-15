@@ -17,34 +17,35 @@ Recipe.objects.bulk_create([
         text=f'Берём чистую кастрюлю...{get_action()}. Готово!',
         author=User.objects.get(id=randint(1, NUMBER_USER)),
         cooking_time=randint(1, 120),
-        # image='recipes/images/test.jpg'
-    ) for _ in range(1, NUMBER_RECIPE + 1)
+        image=f'recipes/images/test_r{i}.jpg'
+    ) for i in range(1, NUMBER_RECIPE + 1)
 ])
 recipe_id = Recipe.objects.values_list('id', flat=True)
 ing_id_list = Ingredient.objects.values_list('id', flat=True)
 tag_id_list = Tag.objects.values_list('id', flat=True)
-ing_id = sample([i for i in ing_id_list], 3)
-tag_id = sample([i for i in tag_id_list], 2)
-def rec_ing(ing_id):
-    RecipeIngredient.objects.bulk_create([
-        RecipeIngredient(
-            recipe=Recipe.objects.get(id=i),
-            ingredient=Ingredient.objects.get(id=ing_id),
-            amount=randrange(10, 2000, 10),
-        ) for i in recipe_id
-    ])
-def rec_tag(tag_id):
-    RecipeTag.objects.bulk_create([
-        RecipeTag(
-            recipe=Recipe.objects.get(id=i),
-            tag=Tag.objects.get(id=tag_id),
-        ) for i in recipe_id
-    ])
-rec_ing(ing_id[0])
-if randint(1, 5) >= 3: rec_ing(ing_id[1])
-if randint(1, 5) >= 1: rec_ing(ing_id[2])
-rec_tag(tag_id[0])
-if randint(1, 5) >= 1: rec_tag(tag_id[1])
+def get_ing(): return sample([i for i in ing_id_list], randint(1, 4))
+def get_tag(): return sample([i for i in tag_id_list], randint(1, 2))
+def rec_ing():
+    ing_id = get_ing()
+    for i_id in ing_id:
+        RecipeIngredient.objects.bulk_create([
+            RecipeIngredient(
+                recipe=Recipe.objects.get(id=r_id),
+                ingredient=Ingredient.objects.get(id=i_id),
+                amount=randrange(10, 2000, 10),
+            ) for r_id in recipe_id
+        ])
+def rec_tag():
+    tag_id = get_ing()
+    for t_id in tag_id:
+        RecipeTag.objects.bulk_create([
+            RecipeTag(
+                recipe=Recipe.objects.get(id=r_id),
+                tag=Tag.objects.get(id=t_id),
+            ) for r_id in recipe_id
+        ])
+rec_ing()
+rec_tag()
 count = Recipe.objects.all().count()
 print(f'Total entries made: {count}.')
 "

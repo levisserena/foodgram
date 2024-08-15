@@ -1,7 +1,8 @@
 from django.contrib.admin import display, ModelAdmin, register, TabularInline
 
 from backend.settings import EXTRA_TABULAR_INLINE
-from .models import Favoritism, Ingredient, Recipe, ShoppingCart, ShortLink, Tag
+from .models import (Favoritism, Ingredient, Recipe,
+                     ShoppingCart, ShortLink, Tag)
 
 
 class TagsInline(TabularInline):
@@ -53,7 +54,8 @@ class RecipeAdmin(ImageMixin, AvatarMixin, ModelAdmin):
     readonly_fields = ('get_html_avatar_user', 'get_favorites_counter',
                        'get_html_image')
     inlines = (IngredientsInline, TagsInline)
-    search_fields = ('name', 'author')
+    search_fields = ('name', 'author__username', 'author__first_name',
+                     'author__last_name',)
 
     @display(description='В избранном у ')
     def get_favorites_counter(self, object):
@@ -90,7 +92,9 @@ class FavoritismAdmin(ImageMixin, AvatarMixin, ModelAdmin):
 
     fields = (('user', 'get_html_avatar_user'), ('recipe', 'get_html_image'))
     readonly_fields = ('get_html_avatar_user', 'get_html_image')
-    search_fields = ('user', 'recipe')
+    search_fields = ('user__username', 'user__first_name',
+                     'user__last_name', 'recipe__name')
+
 
 @register(ShoppingCart)
 class ShoppingCartAdmin(FavoritismAdmin):

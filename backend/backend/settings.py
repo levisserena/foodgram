@@ -1,21 +1,24 @@
 import os
 from pathlib import Path
+from dotenv import load_dotenv
+
+load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = (
-    'django-insecure-508yx%04(-1rh@o74nuath+i4adict$)@p7k3=(^!xflgsta1_' # спрятать в .env
-)
+SECRET_KEY = os.getenv('SECRET_KEY')
 
-DEBUG = True
+DEBUG = False
 # True если использует SQLite, иначе используется PostgreSQL.
-SQLAITE = True
+SQLAITE = False
 # При запуске проекта через manage.py runserver - значение True.
-LOCALLY = 1
+LOCALLY = False
+# True если нужно использовать доменное имя.
+DOMAIN = True
 # True если используется защищённый протокол передачи данных в интернете.
-HTTPSecure = False
+HTTPSecure = True
 
-DOMAIN_NAME = '.env' if not DEBUG else (  # подтянуть из .env
+DOMAIN_NAME = os.getenv('DOMAIN_NAME', '') if DOMAIN else (
     '127.0.0.1:8000' if LOCALLY else 'localhost'
 )
 

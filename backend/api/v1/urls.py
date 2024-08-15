@@ -1,9 +1,8 @@
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
-from .views import (IngredientViewSer, redirect_short_link,
-                    RecipeViewSet, TagViewSet, UserFoodgramViewSet)
-
+from .views import (IngredientViewSer, RecipeViewSet, redirect_short_link,
+                    TagViewSet, UserFoodgramViewSet)
 
 router_recipes = DefaultRouter()
 router_recipes.register('recipes', RecipeViewSet,

@@ -1,7 +1,7 @@
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect
-from django_filters.rest_framework import DjangoFilterBackend
 from djoser.views import UserViewSet
+from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import status
 from rest_framework.decorators import action, api_view
 from rest_framework.mixins import ListModelMixin, RetrieveModelMixin
@@ -84,9 +84,9 @@ class UserFoodgramViewSet(UserViewSet):
             return exists_then_400('Вы уже подписаны на этого пользователя')
         if user == following:
             return Response(
-                    {'errors': 'Нельзя подписываться на самого себя'},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+                {'errors': 'Нельзя подписываться на самого себя'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         Follow.objects.create(user=user, following=following)
         serializer = UserSubscriptionsSerializer(
             instance=following, context={'request': request}
@@ -203,7 +203,7 @@ class RecipeViewSet(ModelViewSet):
             short_link_recipe = short_link_recipe.first()
         return Response(
             {'short-link': f'http{HTTPS}://{DOMAIN_NAME}'
-                f'/s/{short_link_recipe.short}/'},
+                           f'/s/{short_link_recipe.short}/'},
             status=status.HTTP_200_OK
         )
 

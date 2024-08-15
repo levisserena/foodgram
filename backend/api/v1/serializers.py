@@ -3,7 +3,7 @@ import re
 
 from django.core.files.base import ContentFile
 from django.db.transaction import atomic
-from djoser.serializers import UserCreateSerializer, UserSerializer, ValidationError
+from djoser.serializers import UserCreateSerializer, UserSerializer
 from rest_framework.exceptions import ValidationError
 from rest_framework.serializers import (ImageField, ModelSerializer,
                                         ReadOnlyField, SerializerMethodField,
@@ -12,7 +12,7 @@ from rest_framework.serializers import (ImageField, ModelSerializer,
 from backend.settings import PATTERN_USERNAME, RECIPES_LIMIT
 from recipes.models import (Favoritism, Ingredient, Recipe, RecipeIngredient,
                             RecipeTag, ShoppingCart, Tag)
-from users.models import User, Follow
+from users.models import Follow, User
 
 
 class Base64ImageField(ImageField):

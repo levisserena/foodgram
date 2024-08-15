@@ -10,6 +10,7 @@ from backend.settings import (MIN_AMOUNT, MIN_COOKING_TIME, LENGTH_SHORT_LINK,
 from users.models import User
 from .utilities import get_short_link
 
+
 class Tag(Model):
     """Метка-тэг."""
 

@@ -1,5 +1,5 @@
 #!/bin/bash
-echo "Create favorit..."
+echo "Create shoping..."
 python manage.py shell -c "
 from random import randint
 from users.models import User
@@ -12,4 +12,4 @@ ShoppingCart.objects.bulk_create([
 count = ShoppingCart.objects.all().count()
 print(f'Total entries made: {count}.')
 "
-echo "...favorit created."
+echo "...shoping created."
