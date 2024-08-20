@@ -9,9 +9,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = os.getenv('SECRET_KEY')
 
-DEBUG = 1
+DEBUG = False
 # True если использует SQLite, иначе используется PostgreSQL.
-SQLAITE = 1
+SQLAITE = False
 # При запуске проекта через manage.py runserver - значение True.
 LOCALLY = False
 
