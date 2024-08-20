@@ -1,20 +1,19 @@
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
 from django.core.exceptions import ValidationError
-from django.db.models import (CASCADE, EmailField, ForeignKey, ImageField,
-                              Model, UniqueConstraint)
+from django.db.models import (CASCADE, CharField, EmailField, ForeignKey,
+                              ImageField, Model, UniqueConstraint)
 from django.utils.safestring import mark_safe
 
 
 class UserFoodgram(AbstractUser):
     """Модель пользователей, для проекта Footgram."""
 
-    REQUIRED_FIELDS = ('first_name', 'last_name')
-
+    first_name = CharField(verbose_name='Имя', max_length=150)
+    last_name = CharField(verbose_name='Фамилия', max_length=150)
     email = EmailField(
         verbose_name='Электронная почта',
         unique=True,
-        blank=False,
         null=True,
         help_text=('Поле обязательное для заполнения. '
                    'Для каждого пользователя уникально.')

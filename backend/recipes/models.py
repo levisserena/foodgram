@@ -1,14 +1,15 @@
 from django.core.validators import MinValueValidator
 from django.db.models import (CASCADE, CharField, DateTimeField, ForeignKey,
                               ImageField, IntegerField, ManyToManyField, Model,
-                              SlugField, TextField, UniqueConstraint)
+                              PositiveSmallIntegerField, SlugField, TextField,
+                              UniqueConstraint)
 from django.utils.safestring import mark_safe
 
 from backend.settings import (LENGTH_SHORT_LINK, LENGTH_TEXT_LONG,
                               LENGTH_TEXT_MEDIUM, LENGTH_TEXT_SHORT,
                               LENGTH_TEXT_SMALL, MIN_AMOUNT, MIN_COOKING_TIME)
 from users.models import User
-from .utilities import get_short_link
+from .utils import get_short_link
 
 
 class Tag(Model):
@@ -17,12 +18,10 @@ class Tag(Model):
     name = CharField(
         verbose_name='Метка-тэг',
         max_length=LENGTH_TEXT_SMALL,
-        blank=False,
     )
     slug = SlugField(
         verbose_name='Слаг',
         max_length=LENGTH_TEXT_SMALL,
-        blank=False,
         unique=True,
         help_text='Уникальный идентификатор тэга, '
         'разрешены символы латиницы, цифры, дефис и подчёркивание.',
@@ -46,12 +45,10 @@ class Ingredient(Model):
         verbose_name='Название',
         max_length=LENGTH_TEXT_MEDIUM,
         unique=True,
-        blank=False,
     )
     measurement_unit = CharField(
         verbose_name='Единица измерения',
         max_length=LENGTH_TEXT_SHORT,
-        blank=False,
     )
 
     class Meta:
@@ -71,11 +68,9 @@ class Recipe(Model):
     name = CharField(
         verbose_name='Название',
         max_length=LENGTH_TEXT_LONG,
-        blank=False,
     )
     text = TextField(
         verbose_name='Описание',
-        blank=False
     )
     author = ForeignKey(
         User,
@@ -86,28 +81,24 @@ class Recipe(Model):
         verbose_name='Ингредиенты',
         related_name='recipe',
         through='RecipeIngredient',
-        blank=True,
     )
     tags = ManyToManyField(
         Tag,
         verbose_name='Тэги',
         related_name='recipe',
         through='RecipeTag',
-        blank=False,
     )
-    cooking_time = IntegerField(
+    cooking_time = PositiveSmallIntegerField(
         verbose_name='Время приготовления в минутах',
         validators=[MinValueValidator(
             MIN_COOKING_TIME,
             message=f'Значение не может быть меньше чем {MIN_COOKING_TIME}',
         )],
-        blank=False,
     )
     image = ImageField(
         verbose_name='Картина',
         upload_to='recipes/images/',
         null=True,
-        blank=False,
         default=None,
     )
     created = DateTimeField(
@@ -208,7 +199,6 @@ class RecipeIngredient(Model):
             MIN_AMOUNT,
             message=f'Значение не может быть меньше чем {MIN_AMOUNT}',
         )],
-        blank=False,
     )
 
     class Meta:
@@ -255,8 +245,8 @@ class Favoritism(Model):
 
     def __str__(self):
         """Строковое представление экземпляра класса."""
-        return (f'{self.user.__str__()} добавил в избранное рецепт '
-                f'{self.recipe.name}.')
+        return ('{0} добавил в избранное рецепт '
+                '{1}.'.format(self.user, self.recipe.name))
 
 
 class ShoppingCart(Model):
@@ -304,7 +294,6 @@ class ShortLink(Model):
         verbose_name='Короткая ссылка',
         max_length=LENGTH_SHORT_LINK,
         unique=True,
-        blank=False,
     )
 
     class Meta:
@@ -315,4 +304,4 @@ class ShortLink(Model):
 
     def __str__(self):
         """Строковое представление экземпляра класса."""
-        return (f'Короткая ссылка рецепта {self.recipe.name}: {self.short}')
+        return f'Короткая ссылка рецепта {self.recipe.name}: {self.short}'

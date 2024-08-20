@@ -1,30 +1,15 @@
-import base64
-import re
-
-from django.core.files.base import ContentFile
 from django.db.transaction import atomic
 from djoser.serializers import UserCreateSerializer, UserSerializer
+from drf_extra_fields.fields import Base64ImageField
 from rest_framework.exceptions import ValidationError
-from rest_framework.serializers import (ImageField, ModelSerializer,
-                                        ReadOnlyField, SerializerMethodField,
+from rest_framework.serializers import (ModelSerializer, ReadOnlyField,
+                                        SerializerMethodField,
                                         SlugRelatedField)
 
-from backend.settings import PATTERN_USERNAME, RECIPES_LIMIT
+from backend.settings import RECIPES_LIMIT
 from recipes.models import (Favoritism, Ingredient, Recipe, RecipeIngredient,
                             RecipeTag, ShoppingCart, Tag)
 from users.models import Follow, User
-
-
-class Base64ImageField(ImageField):
-    """Определяет поле, для декодирования строки Base64."""
-
-    def to_internal_value(self, data):
-        """Проверка данных на соответствие."""
-        if isinstance(data, str) and data.startswith('data:image'):
-            format, img_str = data.split(';base64,')
-            ext = format.split('/')[-1]
-            data = ContentFile(base64.b64decode(img_str), name='temp.' + ext)
-        return super().to_internal_value(data)
 
 
 def is_authenticated_user(object_self):
@@ -55,7 +40,7 @@ class UserFoodgramSerializer(UserSerializer):
         """Обрабатывает поле is_subscribed."""
         request, result = is_authenticated_user(self)
         return True if result and Follow.objects.filter(
-            user=request.user, following=object) else False
+            user=request.user, following=object).exists() else False
 
 
 class UserCreateFoodgramSerializer(UserCreateSerializer):
@@ -73,19 +58,7 @@ class UserCreateFoodgramSerializer(UserCreateSerializer):
         )
         read_only_fields = ('id',)
         write_only_fields = ('password',)
-        extra_kwargs = {
-            'email': {'required': True},
-            'username': {'required': True},
-            'first_name': {'required': True},
-            'last_name': {'required': True},
-            'password': {'required': True},
-        }
-
-    def validate_username(self, username):
-        """Проверяет по паттерну."""
-        if not re.match(PATTERN_USERNAME, username):
-            raise ValidationError('В имени используется неразрешенные знаки.')
-        return username
+        extra_kwargs = {'email': {'required': True}}
 
 
 class AvatarSerializer(ModelSerializer):
@@ -178,13 +151,13 @@ class RecipeReadSerializer(ModelSerializer):
         """Обрабатывает поле is_favorited."""
         request, result = is_authenticated_user(self)
         return True if result and Favoritism.objects.filter(
-            user=request.user, recipe=object.id) else False
+            user=request.user, recipe=object.id).exists() else False
 
     def get_is_in_shopping_cart(self, object):
         """Обрабатывает поле is_in_shopping_cart."""
         request, result = is_authenticated_user(self)
         return True if result and ShoppingCart.objects.filter(
-            user=request.user, recipe=object.id) else False
+            user=request.user, recipe=object.id).exists() else False
 
 
 class RecipeWriteSerializer(ModelSerializer):
@@ -228,31 +201,32 @@ class RecipeWriteSerializer(ModelSerializer):
     @atomic
     def update(self, instance, validated_data):
         """Обрабатывает изменение рецепта."""
-        instance.image = validated_data.get('image', instance.image)
-        instance.name = validated_data.get('name', instance.name)
-        instance.text = validated_data.get('text', instance.text)
-        instance.cooking_time = validated_data.get(
-            'cooking_time', instance.cooking_time
-        )
-        if 'ingredients' in validated_data:
-            ingredients_data = validated_data.pop('ingredients')
-            RecipeIngredient.objects.filter(recipe=instance).delete()
-            RecipeIngredient.objects.bulk_create([
-                RecipeIngredient(
-                    recipe=instance,
-                    ingredient=data['id'],
-                    amount=data['amount'],
-                ) for data in ingredients_data
-            ])
-        else:
-            raise ValidationError('У рецепта должны быть ингредиенты.')
-        if 'tags' in validated_data:
-            tags_data = validated_data.pop('tags')
-            instance.tags.set([tag for tag in tags_data])
-        else:
+        ingredients_data = validated_data.pop('ingredients')
+        RecipeIngredient.objects.filter(recipe=instance).delete()
+        RecipeIngredient.objects.bulk_create([
+            RecipeIngredient(
+                recipe=instance,
+                ingredient=data['id'],
+                amount=data['amount'],
+            ) for data in ingredients_data
+        ])
+        tags_data = validated_data.pop('tags')
+        instance.tags.set([tag for tag in tags_data])
+        return super().update(instance, validated_data)
+
+    def validate(self, attrs):
+        """Проверит наличие полей tags и ingredients."""
+        if 'tags' not in attrs:
             raise ValidationError('У рецепта должны быть тэги.')
-        instance.save()
-        return instance
+        if 'ingredients' not in attrs:
+            raise ValidationError('У рецепта должны быть ингредиенты.')
+        return attrs
+
+    def validate_image(self, image):
+        """Проверит поле картинки у рецепта."""
+        if not image:
+            raise ValidationError('Строка не должна быть пустой.')
+        return image
 
     def validate_ingredients(self, ingredients):
         """Проверит поле ингредиентов у рецепта."""
@@ -268,7 +242,7 @@ class RecipeWriteSerializer(ModelSerializer):
 
     def check_ingredients_or_tags(self, orders, list_id_order, message):
         """Для проверки наличия объектов и отсутствие их дублирования."""
-        if orders == []:
+        if not orders:
             raise ValidationError(f'У рецепта должны быть {message}.')
         if len(list_id_order) != len(set(list_id_order)):
             raise ValidationError(f'{message} не должны повторятся.')
@@ -327,3 +301,27 @@ class UserSubscriptionsSerializer(UserFoodgramSerializer):
     def get_recipes_count(self, object):
         """Обрабатывает поле "счетчик рецептов"."""
         return Recipe.objects.filter(author=object.id).count()
+
+
+class UserSubscribeSerializer(ModelSerializer):
+    """Сериализатор для модели подписки.
+
+    Используется для создания и удаления подписок.
+    """
+
+    class Meta:
+        """Метаданные."""
+
+        model = Follow
+        fields = ('user', 'following')
+
+    def validate_following(self, value):
+        """Проверит поле following."""
+        if self.context['request'].user == value:
+            raise ValidationError('Нельзя подписываться на самого себя.')
+        return value
+
+    def to_representation(self, instance):
+        """После создания, вернет эти данные."""
+        serializer = UserSubscriptionsSerializer(instance['following'])
+        return serializer.data

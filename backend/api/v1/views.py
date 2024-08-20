@@ -1,3 +1,4 @@
+from django.db.models import Sum
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect
 from django_filters.rest_framework import DjangoFilterBackend
@@ -9,16 +10,16 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet, ModelViewSet
 
-from backend.settings import DOMAIN_NAME, HTTPS, LOCALLY
-from recipes.models import (Favoritism, Ingredient, Recipe, RecipeIngredient,
-                            ShoppingCart, ShortLink, Tag)
+from backend.settings import LOCALLY
+from recipes.models import (Favoritism, Ingredient, Recipe, ShoppingCart,
+                            ShortLink, Tag)
 from users.models import Follow, User
-from .filters import IngredientSearchFilter, RecipeFilterSet
+from .filters import IngredientFilter, RecipeFilterSet
 from .permission import IsAdminOrAuthor
 from .serializers import (AvatarSerializer, IngredientSerializer,
                           RecipeReadSerializer, RecipeShortSerializer,
                           RecipeWriteSerializer, TagSerializer,
-                          UserSubscriptionsSerializer)
+                          UserSubscribeSerializer, UserSubscriptionsSerializer)
 
 
 def delete_or_400(object, message):
@@ -73,24 +74,21 @@ class UserFoodgramViewSet(UserViewSet):
 
     @action(detail=True, methods=['POST', 'DELETE'], url_path='subscribe')
     def subscribe(self, request, id=None):
-        """Позволяет подписаться и отписаться на другого пользователя."""
+        """Подписаться или отписаться от другого пользователя."""
         user = request.user
         following = get_object_or_404(User, id=id)
         follow = Follow.objects.filter(user=user, following=following)
+        data = {'user': user.id, 'following': following.id}
+        serializer = UserSubscribeSerializer(
+            data=data, context={'request': request}
+        )
+        serializer.is_valid(raise_exception=True)
         if request.method == 'DELETE':
             return delete_or_400(follow,
                                  'Вы не были подписаны на этого пользователя')
         if follow.exists():
             return exists_then_400('Вы уже подписаны на этого пользователя')
-        if user == following:
-            return Response(
-                {'errors': 'Нельзя подписываться на самого себя'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
         Follow.objects.create(user=user, following=following)
-        serializer = UserSubscriptionsSerializer(
-            instance=following, context={'request': request}
-        )
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
@@ -100,8 +98,8 @@ class IngredientViewSer(RetrieveModelMixin, ListModelMixin, GenericViewSet):
     queryset = Ingredient.objects.all()
     serializer_class = IngredientSerializer
     pagination_class = None
-    filter_backends = (IngredientSearchFilter,)
-    search_fields = ('^name',)
+    filter_backends = (DjangoFilterBackend,)
+    filterset_class = IngredientFilter
 
 
 class TagViewSet(RetrieveModelMixin, ListModelMixin, GenericViewSet):
@@ -176,19 +174,13 @@ class RecipeViewSet(ModelViewSet):
     @action(detail=False, methods=['Get'], url_path='download_shopping_cart')
     def download_shopping_cart(self, request):
         """Отдаст пользователю файл с его списком покупок."""
-        ingredient_list_qs = RecipeIngredient.objects.filter(
+        ingredient_list_qs = Ingredient.objects.filter(
             recipe__shop__user=request.user,
-        )
-        ingredient_list = [str(i).rsplit(' ', 1) for i in ingredient_list_qs]
-        list_for_file = {}
-        for element in ingredient_list:
-            if element[0] in list_for_file:
-                list_for_file[element[0]] += int(element[1])
-            else:
-                list_for_file[element[0]] = int(element[1])
+        ).annotate(total_amount=Sum('recipeingredient__amount'))
         file_txt = [
-            f'{ingredient.capitalize()} - {amount}\n'
-            for ingredient, amount in list_for_file.items()
+            '{0} - {1} {2}.\n'.format(
+                ing.name.capitalize(), ing.total_amount, ing.measurement_unit
+            ) for ing in ingredient_list_qs
         ]
         return HttpResponse(file_txt, content_type='text/plain')
 
@@ -196,14 +188,13 @@ class RecipeViewSet(ModelViewSet):
     def get_link(self, request, pk=None):
         """Возвращает короткую ссылку на рецепт."""
         short_link_recipe = ShortLink.objects.filter(recipe=pk)
-        if not short_link_recipe.exists():
-            recipe = get_object_or_404(Recipe, pk=pk)
-            short_link_recipe = recipe.short_link()
+        if short_link_recipe.exists():
+            short = short_link_recipe.first()
         else:
-            short_link_recipe = short_link_recipe.first()
+            recipe = get_object_or_404(Recipe, pk=pk)
+            short = recipe.short_link
         return Response(
-            {'short-link': f'http{HTTPS}://{DOMAIN_NAME}'
-                           f'/s/{short_link_recipe.short}/'},
+            {'short-link': request.build_absolute_uri(f'/s/{short.short}/')},
             status=status.HTTP_200_OK
         )
 
@@ -213,7 +204,7 @@ def redirect_short_link(request, short):
     """Обрабатывает короткие ссылки."""
     recipe_short_link = get_object_or_404(ShortLink, short=short)
     recipe_id = recipe_short_link.recipe.id
-    substring = '/api' if LOCALLY else ''
+    substring = 'api/' if LOCALLY else ''
     return redirect(
-        f'http{HTTPS}://{DOMAIN_NAME}{substring}/recipes/{recipe_id}/'
+        request.build_absolute_uri(f'/{substring}recipes/{recipe_id}/')
     )

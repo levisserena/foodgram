@@ -1,6 +1,7 @@
 from django.contrib.admin import ModelAdmin, TabularInline, display, register
 
-from backend.settings import EXTRA_TABULAR_INLINE
+from backend.settings import (EXTRA_TABULAR_INLINE, MIN_NUMBER_INGREDIENTS,
+                              MIN_NUMBER_TAGS)
 from .models import (Favoritism, Ingredient, Recipe, ShoppingCart, ShortLink,
                      Tag)
 
@@ -9,6 +10,7 @@ class TagsInline(TabularInline):
     """Позволит в зоне администрирования в рецептах выбирать тэги."""
 
     model = Recipe.tags.through
+    min_num = MIN_NUMBER_TAGS
     extra = EXTRA_TABULAR_INLINE
     verbose_name = 'Тэг к рецепту'
     verbose_name_plural = 'Тэги'
@@ -18,6 +20,7 @@ class IngredientsInline(TabularInline):
     """Позволит в зоне администрирования в рецептах выбирать ингридиенты."""
 
     model = Recipe.ingredients.through
+    min_num = MIN_NUMBER_INGREDIENTS
     extra = EXTRA_TABULAR_INLINE
     verbose_name = 'Ингредиент к рецепту'
     verbose_name_plural = 'Ингредиенты'
@@ -108,4 +111,4 @@ class ShortLinkAdmin(ModelAdmin):
     """Для управления добавления рецептов в корзину в админ зоне."""
 
     fields = ('recipe', 'short')
-    search_fields = ('recipe', 'short')
+    search_fields = ('recipe__name', 'recipe__id', 'short')

@@ -9,21 +9,13 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = os.getenv('SECRET_KEY')
 
-DEBUG = False
+DEBUG = 1
 # True если использует SQLite, иначе используется PostgreSQL.
-SQLAITE = False
+SQLAITE = 1
 # При запуске проекта через manage.py runserver - значение True.
 LOCALLY = False
-# True если нужно использовать доменное имя.
-DOMAIN = True
-# True если используется защищённый протокол передачи данных в интернете.
-HTTPSecure = True
 
-DOMAIN_NAME = os.getenv('DOMAIN_NAME', '') if DOMAIN else (
-    '127.0.0.1:8000' if LOCALLY else 'localhost'
-)
-
-ALLOWED_HOSTS = ['127.0.0.1', 'localhost', DOMAIN_NAME]
+ALLOWED_HOSTS = ['127.0.0.1', 'localhost', os.getenv('DOMAIN_NAME', '')]
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -160,16 +152,14 @@ DJOSER = {
     },
 }
 
-PATTERN_USERNAME = r'^[\w.@+-]+\Z'
-
-SEARCH_PARAM = 'name'
-
 PAGE_SIZE = 6
 PAGE_SIZE_QUERY_PARAM = 'limit'
 
 EXTRA_TABULAR_INLINE = 1
 RECIPES_LIMIT = 1
 
+MIN_NUMBER_TAGS = 1
+MIN_NUMBER_INGREDIENTS = 1
 MIN_COOKING_TIME = 1
 MIN_AMOUNT = 1
 LENGTH_USERNAME = 150
@@ -182,5 +172,3 @@ STRING_CHARACTERS = ('abcdefghijklmnopqrstuvwxyz'
                      'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
                      '1234567890')
 LENGTH_SHORT_LINK = 4
-
-HTTPS = 's' if HTTPSecure else ''
