@@ -188,31 +188,29 @@ class RecipeWriteSerializer(ModelSerializer):
         tags = validated_data.pop('tags')
         ingredients = validated_data.pop('ingredients')
         recipe = Recipe.objects.create(**validated_data)
-        RecipeTag.objects.bulk_create([
-            RecipeTag(recipe=recipe, tag=tag) for tag in tags
-        ])
-        RecipeIngredient.objects.bulk_create([
-            RecipeIngredient(
-                recipe=recipe, amount=data['amount'], ingredient=data['id']
-            ) for data in ingredients
-        ])
+        self.create_m2m_for_recipe(recipe, ingredients, tags)
         return recipe
 
     @atomic
     def update(self, instance, validated_data):
         """Обрабатывает изменение рецепта."""
-        ingredients_data = validated_data.pop('ingredients')
+        tags = validated_data.pop('tags')
+        ingredients = validated_data.pop('ingredients')
         RecipeIngredient.objects.filter(recipe=instance).delete()
+        self.create_m2m_for_recipe(instance, ingredients, tags)
+        return super().update(instance, validated_data)
+
+    @staticmethod
+    def create_m2m_for_recipe(recipe, ingredients, tags):
+        """Создаст записи в связных таблицах для ингредиентов и тегов."""
         RecipeIngredient.objects.bulk_create([
             RecipeIngredient(
-                recipe=instance,
+                recipe=recipe,
                 ingredient=data['id'],
                 amount=data['amount'],
-            ) for data in ingredients_data
+            ) for data in ingredients
         ])
-        tags_data = validated_data.pop('tags')
-        instance.tags.set([tag for tag in tags_data])
-        return super().update(instance, validated_data)
+        recipe.tags.set([tag for tag in tags])
 
     def validate(self, attrs):
         """Проверит наличие полей tags и ingredients."""

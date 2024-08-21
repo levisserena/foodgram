@@ -139,10 +139,7 @@ class Recipe(Model):
         while True:
             short_link = get_short_link()
             if not ShortLink.objects.filter(short=short_link).exists():
-                result = ShortLink.objects.create(recipe=self,
-                                                  short=short_link)
-                break
-        return result
+                return ShortLink.objects.create(recipe=self, short=short_link)
 
     @property
     def short_link(self):
