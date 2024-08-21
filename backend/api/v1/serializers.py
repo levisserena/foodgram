@@ -8,7 +8,7 @@ from rest_framework.serializers import (ModelSerializer, ReadOnlyField,
 
 from backend.settings import RECIPES_LIMIT
 from recipes.models import (Favoritism, Ingredient, Recipe, RecipeIngredient,
-                            RecipeTag, ShoppingCart, Tag)
+                            ShoppingCart, Tag)
 from users.models import Follow, User
 
 
