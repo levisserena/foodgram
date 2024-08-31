@@ -33,27 +33,25 @@ services:
       - "8077:80"
     volumes:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf
-      - ../frontend/build:/usr/share/nginx/html/
-      - static:/static/
+      - static:/staticfiles/
       - media:/media/
+
+  frontend:
+    container_name: foodgram-front
+    image: levisserena/foodgram_frontend:latest
+    env_file: .env
+    command: cp -r /app/build/. /result_build/
+    depends_on:
+      - nginx
+    volumes:
+      - static:/result_build
 
   backend:
     container_name: foodgram-backend
     image: levisserena/foodgram_backend:latest
     env_file: .env
     depends_on:
-      db:
-        condition: service_healthy
-        restart: true
+      - nginx
     volumes:
       - static:/static
       - media:/media
-
-  frontend:
-    container_name: foodgram-front
-    image: levisserena/foodgram_frontend:latest
-    env_file: .env
-    depends_on:
-      - backend
-    volumes:
-      - ../frontend/:/app/result_build/

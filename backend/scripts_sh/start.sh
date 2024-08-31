@@ -25,6 +25,8 @@ sh scripts_sh/image.sh
 echo "---------------------------------"
 sh scripts_sh/static.sh
 echo "---------------------------------"
+sh scripts_sh/docs.sh
+echo "---------------------------------"
 echo "...finihs filling the database."
 echo "_________________________________"
 echo "‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾"
